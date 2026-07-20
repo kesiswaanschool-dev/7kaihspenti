@@ -524,17 +524,21 @@ const PengaturanAkun = () => {
 const Rekapitulasi = () => {
   const [missingStudents, setMissingStudents] = useState([]);
   const [filterType, setFilterType] = useState('hari');
+  const [filterKelas, setFilterKelas] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchData();
-  }, [filterType]);
+  }, [filterType, filterKelas]);
 
   const fetchData = async () => {
     setLoading(true);
     
     // 1. Ambil semua siswa
-    const { data: allStudents } = await supabase.from('students').select('*');
+    let { data: allStudents } = await supabase.from('students').select('*');
+    if (allStudents && filterKelas) {
+      allStudents = allStudents.filter(s => s.kelas.toLowerCase().includes(filterKelas.toLowerCase()));
+    }
     
     // 2. Tentukan rentang waktu
     let startDate = new Date();
@@ -636,12 +640,21 @@ const Rekapitulasi = () => {
       </div>
       
       <div className="glass-panel mb-6">
-        <h3 className="mb-4 text-sm">Pilih Rentang Waktu</h3>
-        <div className="flex gap-4">
-          <button className={`btn ${filterType === 'hari' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('hari')}>Hari Ini</button>
-          <button className={`btn ${filterType === 'minggu' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('minggu')}>7 Hari Terakhir</button>
-          <button className={`btn ${filterType === 'bulan' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('bulan')}>Bulan Ini</button>
-          <button className={`btn ${filterType === 'semester' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('semester')}>Semester Ini</button>
+        <h3 className="mb-4 text-sm">Filter Rekapitulasi</h3>
+        <div className="flex flex-col gap-4">
+          <div className="form-group" style={{ maxWidth: '300px' }}>
+            <label className="form-label">Kelas</label>
+            <input type="text" className="form-control" placeholder="Contoh: 7A (Kosongkan untuk semua)" value={filterKelas} onChange={e => setFilterKelas(e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label mb-2 block">Rentang Waktu</label>
+            <div className="flex gap-4">
+              <button className={`btn ${filterType === 'hari' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('hari')}>Hari Ini</button>
+              <button className={`btn ${filterType === 'minggu' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('minggu')}>7 Hari Terakhir</button>
+              <button className={`btn ${filterType === 'bulan' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('bulan')}>Bulan Ini</button>
+              <button className={`btn ${filterType === 'semester' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('semester')}>Semester Ini</button>
+            </div>
+          </div>
         </div>
       </div>
       
