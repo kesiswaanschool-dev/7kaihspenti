@@ -34,15 +34,7 @@ const DataSiswa = () => {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Template_Siswa");
     
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
-    const url = window.URL.createObjectURL(data);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Template_Data_Siswa.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    XLSX.writeFile(workbook, "Template_Data_Siswa.xlsx");
   };
 
   const handleImportExcel = (e) => {
@@ -271,17 +263,7 @@ const Laporan = () => {
     if (filterType === 'hari' && filterHari) fileName += `_Tanggal_${filterHari}`;
     if (filterKelas) fileName += `_Kelas_${filterKelas}`;
     
-    // Gunakan Blob agar lebih kompatibel dengan berbagai browser dan perangkat
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const fileData = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
-    const url = window.URL.createObjectURL(fileData);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${fileName}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    XLSX.writeFile(workbook, `${fileName}.xlsx`);
   }
 
   return (
