@@ -368,7 +368,7 @@ const PengaturanAkun = () => {
                       <td className="font-medium">{admin.username}</td>
                       <td>{admin.password}</td>
                       <td style={{ fontSize: '0.85rem' }}>
-                        {new Date(admin.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {admin.created_at ? new Date(admin.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
                       </td>
                     </tr>
                   ))}
