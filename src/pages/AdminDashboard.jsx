@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, FileText, Settings, LogOut, Upload, Download } from 'lucide-react'
+import { Users, FileText, Settings, LogOut, Upload, Download, Activity } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import * as XLSX from 'xlsx'
 
@@ -462,6 +462,174 @@ const PengaturanAkun = () => {
   )
 }
 
+const Rekapitulasi = () => {
+  const [missingStudents, setMissingStudents] = useState([]);
+  const [filterType, setFilterType] = useState('hari');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, [filterType]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    
+    // 1. Ambil semua siswa
+    const { data: allStudents } = await supabase.from('students').select('*');
+    
+    // 2. Tentukan rentang waktu
+    let startDate = new Date();
+    startDate.setHours(0,0,0,0);
+    
+    let endDate = new Date();
+    endDate.setHours(23,59,59,999);
+    
+    if (filterType === 'minggu') {
+      startDate.setDate(startDate.getDate() - 6); // 7 hari terakhir (termasuk hari ini)
+    } else if (filterType === 'bulan') {
+      startDate.setDate(1); // Awal bulan ini
+    } else if (filterType === 'semester') {
+      const month = startDate.getMonth();
+      if (month >= 6) { // Juli - Des (Ganjil)
+        startDate.setMonth(6, 1);
+      } else { // Jan - Jun (Genap)
+        startDate.setMonth(0, 1);
+      }
+    }
+    
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+    
+    // 3. Ambil log dalam rentang waktu
+    const { data: logs } = await supabase
+      .from('habits_log')
+      .select('nis, tanggal')
+      .gte('tanggal', startDateStr)
+      .lte('tanggal', endDateStr);
+      
+    // 4. Hitung siapa yang belum mengisi
+    if (allStudents) {
+      if (filterType === 'hari') {
+        const submittedNis = new Set((logs || []).map(l => String(l.nis)));
+        const missing = allStudents.filter(s => !submittedNis.has(String(s.nis)));
+        setMissingStudents(missing.map(s => ({ ...s, missingCount: 1 })));
+      } else {
+        // Hitung total hari berjalan dari startDate sampai endDate
+        const today = new Date();
+        const diffTime = Math.abs(today - startDate);
+        let totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        if (totalDays === 0) totalDays = 1;
+        
+        const submissions = {};
+        (logs || []).forEach(l => {
+          submissions[l.nis] = (submissions[l.nis] || 0) + 1;
+        });
+        
+        const missing = [];
+        allStudents.forEach(s => {
+          const submitted = submissions[s.nis] || 0;
+          if (submitted < totalDays) {
+            missing.push({ ...s, missingCount: totalDays - submitted });
+          }
+        });
+        
+        // Sort by most missing
+        missing.sort((a,b) => b.missingCount - a.missingCount);
+        setMissingStudents(missing);
+      }
+    }
+    setLoading(false);
+  };
+
+  const handleExportExcel = () => {
+    if (missingStudents.length === 0) {
+      alert("Tidak ada data untuk diexport!");
+      return;
+    }
+    
+    const dataToExport = missingStudents.map(student => ({
+      "NIS": student.nis,
+      "Nama Siswa": student.nama_murid,
+      "Kelas": student.kelas,
+      "Wali Kelas": student.wali_kelas,
+      "Jumlah Bolos (Hari)": student.missingCount
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap_Belum_Mengisi");
+    
+    let label = "Hari_Ini";
+    if (filterType === 'minggu') label = "Seminggu_Terakhir";
+    if (filterType === 'bulan') label = "Bulan_Ini";
+    if (filterType === 'semester') label = "Semester_Ini";
+    
+    XLSX.writeFile(workbook, `Rekap_Belum_Mengisi_${label}.xlsx`);
+  }
+
+  return (
+    <div className="animate-fade-in">
+      <div className="flex justify-between items-center mb-6">
+        <h2>Rekapitulasi (Belum Mengisi)</h2>
+        <button onClick={handleExportExcel} className="btn btn-primary">
+          <Download size={18}/> Export Excel
+        </button>
+      </div>
+      
+      <div className="glass-panel mb-6">
+        <h3 className="mb-4 text-sm">Pilih Rentang Waktu</h3>
+        <div className="flex gap-4">
+          <button className={`btn ${filterType === 'hari' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('hari')}>Hari Ini</button>
+          <button className={`btn ${filterType === 'minggu' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('minggu')}>7 Hari Terakhir</button>
+          <button className={`btn ${filterType === 'bulan' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('bulan')}>Bulan Ini</button>
+          <button className={`btn ${filterType === 'semester' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('semester')}>Semester Ini</button>
+        </div>
+      </div>
+      
+      {!loading && (
+        <div className="mb-4 p-4" style={{ backgroundColor: 'var(--surface-color)', borderRadius: 'var(--radius-md)', borderLeft: '4px solid var(--danger-color)' }}>
+          <strong>Statistik:</strong> Terdapat <strong>{missingStudents.length} siswa</strong> yang membolos / kurang mengisi laporan pada rentang waktu yang dipilih.
+        </div>
+      )}
+
+      <div className="table-container">
+        <table className="modern-table text-sm">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>NIS</th>
+              <th>Nama Murid</th>
+              <th>Kelas</th>
+              <th className="text-center">Jumlah Bolos (Hari)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan="5" className="text-center">Menghitung rekapitulasi...</td></tr>
+            ) : missingStudents.length === 0 ? (
+              <tr><td colSpan="5" className="text-center text-secondary">Luar biasa! Semua siswa sudah mengisi laporan.</td></tr>
+            ) : (
+              missingStudents.map((student, idx) => (
+                <tr key={student.id}>
+                  <td>{idx + 1}</td>
+                  <td className="font-medium">{student.nis}</td>
+                  <td>{student.nama_murid}</td>
+                  <td>{student.kelas}</td>
+                  <td className="text-center">
+                    <span style={{ backgroundColor: 'var(--danger-color)', color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                      {student.missingCount} Hari
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminDashboard() {
   const [activeMenu, setActiveMenu] = useState('dataSiswa')
   const navigate = useNavigate()
@@ -475,6 +643,7 @@ export default function AdminDashboard() {
     switch(activeMenu) {
       case 'dataSiswa': return <DataSiswa />
       case 'laporan': return <Laporan />
+      case 'rekapitulasi': return <Rekapitulasi />
       case 'pengaturan': return <PengaturanAkun />
       default: return <DataSiswa />
     }
@@ -506,6 +675,14 @@ export default function AdminDashboard() {
             onClick={() => setActiveMenu('laporan')}
           >
             <FileText size={20} /> Laporan
+          </button>
+          
+          <button 
+            className={`btn w-full justify-start ${activeMenu === 'rekapitulasi' ? 'btn-primary' : 'btn-outline'}`}
+            style={{ border: activeMenu !== 'rekapitulasi' ? 'none' : '' }}
+            onClick={() => setActiveMenu('rekapitulasi')}
+          >
+            <Activity size={20} /> Rekapitulasi
           </button>
           
           <button 
