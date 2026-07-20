@@ -615,7 +615,8 @@ const Rekapitulasi = () => {
       "Nama Siswa": student.nama_murid,
       "Kelas": student.kelas,
       "Wali Kelas": student.wali_kelas,
-      "Jumlah Bolos (Hari)": student.missingCount
+      "Jumlah Bolos (Hari)": student.missingCount,
+      "Keterangan": `Belum mengisi laporan sebanyak ${student.missingCount} hari.`
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -673,13 +674,14 @@ const Rekapitulasi = () => {
               <th>Nama Murid</th>
               <th>Kelas</th>
               <th className="text-center">Jumlah Bolos (Hari)</th>
+              <th>Keterangan</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="5" className="text-center">Menghitung rekapitulasi...</td></tr>
+              <tr><td colSpan="6" className="text-center">Menghitung rekapitulasi...</td></tr>
             ) : missingStudents.length === 0 ? (
-              <tr><td colSpan="5" className="text-center text-secondary">Luar biasa! Semua siswa sudah mengisi laporan.</td></tr>
+              <tr><td colSpan="6" className="text-center text-secondary">Luar biasa! Semua siswa sudah mengisi laporan.</td></tr>
             ) : (
               missingStudents.map((student, idx) => (
                 <tr key={student.id}>
@@ -691,6 +693,9 @@ const Rekapitulasi = () => {
                     <span style={{ backgroundColor: 'var(--danger-color)', color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
                       {student.missingCount} Hari
                     </span>
+                  </td>
+                  <td>
+                    Belum mengisi laporan sebanyak {student.missingCount} hari
                   </td>
                 </tr>
               ))
