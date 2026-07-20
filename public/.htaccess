@@ -1,0 +1,12 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  
+  # Jangan arahkan ulang jika yang diakses adalah file asli yang ada (seperti orangtua.html)
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME} !-l
+  
+  # Arahkan semua request lain ke index.html agar rute React (misal: /admin, /student) bisa bekerja
+  RewriteRule ^.*$ /index.html [L,QSA]
+</IfModule>
