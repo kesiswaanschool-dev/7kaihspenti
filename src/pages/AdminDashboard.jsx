@@ -631,13 +631,23 @@ const Rekapitulasi = () => {
     XLSX.writeFile(workbook, `Rekap_Belum_Mengisi_${label}.xlsx`);
   }
 
+  const handleResetFilter = () => {
+    setFilterKelas('');
+    setFilterType('hari');
+  };
+
   return (
     <div className="animate-fade-in">
       <div className="flex justify-between items-center mb-6">
         <h2>Rekapitulasi (Belum Mengisi)</h2>
-        <button onClick={handleExportExcel} className="btn btn-primary">
-          <Download size={18}/> Export Excel
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleResetFilter} className="btn btn-outline" style={{ borderColor: '#ef4444', color: '#ef4444' }}>
+            Reset Pencarian
+          </button>
+          <button onClick={handleExportExcel} className="btn btn-primary">
+            <Download size={18}/> Export Excel
+          </button>
+        </div>
       </div>
       
       <div className="glass-panel mb-6">
