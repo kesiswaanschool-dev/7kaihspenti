@@ -177,10 +177,7 @@ const DataSiswa = () => {
           </tbody>
         </table>
       </div>
-      <div className="mt-4 p-4 glass-panel text-sm text-center">
-        <p className="mb-2"><strong>Format Excel:</strong> NIS, Nama Murid, Kelas, Wali Kelas</p>
-        <a href="#" className="btn btn-outline">Download Template Excel</a>
-      </div>
+
     </div>
   )
 }
