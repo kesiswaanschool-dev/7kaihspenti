@@ -39,7 +39,10 @@ const DataSiswa = () => {
     const link = document.createElement('a');
     link.href = url;
     link.download = `Template_Data_Siswa.xlsx`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   };
 
   const handleImportExcel = (e) => {
@@ -275,7 +278,10 @@ const Laporan = () => {
     const link = document.createElement('a');
     link.href = url;
     link.download = `${fileName}.xlsx`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   }
 
   return (
