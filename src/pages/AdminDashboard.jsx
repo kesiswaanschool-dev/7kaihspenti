@@ -24,6 +24,65 @@ const DataSiswa = () => {
     fetchStudents();
   }, []);
 
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      { "nis": "12345", "nama_murid": "Budi Santoso", "kelas": "7A", "wali_kelas": "Bpk. Guru" },
+      { "nis": "12346", "nama_murid": "Siti Aminah", "kelas": "7A", "wali_kelas": "Bpk. Guru" }
+    ];
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Template_Siswa");
+    
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
+    const url = window.URL.createObjectURL(data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Template_Data_Siswa.xlsx`;
+    link.click();
+  };
+
+  const handleImportExcel = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const buffer = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const wsname = workbook.SheetNames[0];
+        const ws = workbook.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+        
+        const formattedData = data.map(row => ({
+          nis: String(row.nis || row.NIS || ''),
+          nama_murid: String(row.nama_murid || row['Nama Siswa'] || row.Nama || ''),
+          kelas: String(row.kelas || row.Kelas || '-'),
+          wali_kelas: String(row.wali_kelas || row['Wali Kelas'] || '-')
+        })).filter(row => row.nis && row.nama_murid);
+
+        if (formattedData.length === 0) {
+          alert('Format data salah atau kosong. Pastikan ada kolom nis dan nama_murid.');
+          return;
+        }
+
+        const { error } = await supabase.from('students').insert(formattedData);
+        if (error) {
+          alert('Gagal import data: ' + error.message);
+        } else {
+          alert(`Berhasil mengimport ${formattedData.length} data siswa!`);
+          fetchStudents();
+        }
+      } catch (err) {
+        alert('Terjadi kesalahan saat membaca file Excel.');
+        console.error(err);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = null; // reset input
+  };
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -46,10 +105,16 @@ const DataSiswa = () => {
       <div className="flex justify-between items-center mb-6">
         <h2>Data Siswa</h2>
         <div className="flex gap-2">
-          <button className="btn btn-outline" onClick={() => setShowForm(!showForm)} style={{ borderColor: 'var(--primary-color)', color: 'var(--primary-color)' }}>
-            {showForm ? 'Batal' : '+ Tambah Siswa'}
+          <button onClick={handleDownloadTemplate} className="btn btn-outline" style={{ borderColor: '#10B981', color: '#10B981' }}>
+            <Download size={18}/> Template Excel
           </button>
-          <button className="btn btn-primary"><Upload size={18}/> Import Excel</button>
+          <label className="btn btn-primary cursor-pointer mb-0 flex items-center justify-center gap-2">
+            <Upload size={18}/> Import Excel
+            <input type="file" accept=".xlsx, .xls" style={{ display: 'none' }} onChange={handleImportExcel} />
+          </label>
+          <button className="btn btn-outline" onClick={() => setShowForm(!showForm)} style={{ borderColor: 'var(--primary-color)', color: 'var(--primary-color)' }}>
+            {showForm ? 'Batal' : '+ Tambah Manual'}
+          </button>
         </div>
       </div>
 
@@ -206,7 +271,14 @@ const Laporan = () => {
     if (filterType === 'hari' && filterHari) fileName += `_Tanggal_${filterHari}`;
     if (filterKelas) fileName += `_Kelas_${filterKelas}`;
     
-    XLSX.writeFile(workbook, `${fileName}.xlsx`);
+    // Gunakan Blob agar lebih kompatibel dengan berbagai browser dan perangkat
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const fileData = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
+    const url = window.URL.createObjectURL(fileData);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${fileName}.xlsx`;
+    link.click();
   }
 
   return (
