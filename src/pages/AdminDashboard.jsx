@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, FileText, Settings, LogOut, Upload, Download, Activity } from 'lucide-react'
+import { Users, FileText, Settings, LogOut, Upload, Download, Activity, PieChart as PieChartIcon } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import * as XLSX from 'xlsx'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 const DataSiswa = () => {
   const [showForm, setShowForm] = useState(false);
@@ -630,8 +631,115 @@ const Rekapitulasi = () => {
   )
 }
 
+const Ringkasan = () => {
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [chartData, setChartData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    // Fetch total students
+    const { count: studentCount } = await supabase
+      .from('students')
+      .select('*', { count: 'exact', head: true });
+    
+    setTotalStudents(studentCount || 0);
+
+    if (studentCount) {
+      // Fetch logs for the last 7 days
+      let startDate = new Date();
+      startDate.setDate(startDate.getDate() - 6);
+      startDate.setHours(0,0,0,0);
+      
+      const startDateStr = startDate.toISOString().split('T')[0];
+      
+      const { data: logs } = await supabase
+        .from('habits_log')
+        .select('tanggal, nis')
+        .gte('tanggal', startDateStr);
+        
+      // Aggregate data per day
+      const dailyData = {};
+      
+      // Initialize last 7 days
+      for(let i=0; i<7; i++) {
+        let d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        const dateStr = d.toISOString().split('T')[0];
+        const shortDate = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+        dailyData[dateStr] = { name: shortDate, tanggal: dateStr, aktif: new Set() };
+      }
+      
+      (logs || []).forEach(log => {
+        if (dailyData[log.tanggal]) {
+          dailyData[log.tanggal].aktif.add(log.nis);
+        }
+      });
+      
+      const formattedChartData = Object.values(dailyData).map(day => ({
+        name: day.name,
+        "Aktif (Mengisi)": day.aktif.size,
+        "Belum Aktif (Bolos)": studentCount - day.aktif.size
+      }));
+      
+      setChartData(formattedChartData);
+    }
+    
+    setLoading(false);
+  };
+
+  return (
+    <div className="animate-fade-in">
+      <h2 className="mb-6">Ringkasan Dashboard</h2>
+      
+      <div className="flex gap-6 mb-8">
+        <div className="glass-panel flex-1 flex flex-col items-center justify-center p-6 text-center" style={{ borderTop: '4px solid var(--primary-color)' }}>
+          <Users size={48} className="mb-4" style={{ color: 'var(--primary-color)' }} />
+          <h3 className="text-lg text-secondary mb-2 font-medium">Total Murid Terdaftar</h3>
+          <p className="text-5xl font-bold" style={{ color: 'var(--primary-color)' }}>
+            {loading ? '...' : totalStudents}
+          </p>
+        </div>
+      </div>
+
+      <div className="glass-panel p-6">
+        <h3 className="mb-6 font-bold" style={{ color: 'var(--primary-color)' }}>Statistik Keaktifan (7 Hari Terakhir)</h3>
+        {loading ? (
+          <div className="flex justify-center items-center" style={{ height: '300px' }}>
+            <p className="text-secondary">Memuat grafik...</p>
+          </div>
+        ) : (
+          <div style={{ width: '100%', height: '350px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={chartData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} tickMargin={10} />
+                <YAxis tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: 'var(--radius-md)', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
+                  cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                />
+                <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                <Bar dataKey="Aktif (Mengisi)" stackId="a" fill="#10B981" radius={[0, 0, 4, 4]} barSize={40} />
+                <Bar dataKey="Belum Aktif (Bolos)" stackId="a" fill="#EF4444" radius={[4, 4, 0, 0]} barSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function AdminDashboard() {
-  const [activeMenu, setActiveMenu] = useState('dataSiswa')
+  const [activeMenu, setActiveMenu] = useState('ringkasan')
   const navigate = useNavigate()
 
   const handleLogout = () => {
@@ -641,6 +749,7 @@ export default function AdminDashboard() {
 
   const renderContent = () => {
     switch(activeMenu) {
+      case 'ringkasan': return <Ringkasan />
       case 'dataSiswa': return <DataSiswa />
       case 'laporan': return <Laporan />
       case 'rekapitulasi': return <Rekapitulasi />
@@ -661,6 +770,14 @@ export default function AdminDashboard() {
         </div>
         
         <div className="flex-col flex-1 p-4 gap-2">
+          <button 
+            className={`btn w-full justify-start ${activeMenu === 'ringkasan' ? 'btn-primary' : 'btn-outline'}`}
+            style={{ border: activeMenu !== 'ringkasan' ? 'none' : '' }}
+            onClick={() => setActiveMenu('ringkasan')}
+          >
+            <PieChartIcon size={20} /> Ringkasan
+          </button>
+          
           <button 
             className={`btn w-full justify-start ${activeMenu === 'dataSiswa' ? 'btn-primary' : 'btn-outline'}`}
             style={{ border: activeMenu !== 'dataSiswa' ? 'none' : '' }}

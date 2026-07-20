@@ -70,9 +70,7 @@ export default function ParentPortal() {
     <div className="app-container flex-col items-center py-10" style={{ background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)', minHeight: '100vh' }}>
       
       <div style={{ width: '100%', maxWidth: '900px', marginBottom: '2rem' }}>
-        <a href="/" className="btn btn-outline mb-4" style={{ display: 'inline-flex', backgroundColor: 'var(--surface-color)', textDecoration: 'none' }}>
-          <ArrowLeft size={18} /> Kembali ke Login
-        </a>
+
         
         <div className="glass-panel text-center animate-fade-in mb-6 flex flex-col items-center">
           <img src="/logo.png" alt="Logo SMP Negeri 3 Batam" style={{ width: '70px', height: 'auto', marginBottom: '1rem' }} />
