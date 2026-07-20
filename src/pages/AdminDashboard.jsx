@@ -524,12 +524,14 @@ const PengaturanAkun = () => {
 const Rekapitulasi = () => {
   const [missingStudents, setMissingStudents] = useState([]);
   const [filterType, setFilterType] = useState('hari');
+  const [filterBulan, setFilterBulan] = useState(new Date().getMonth().toString());
+  const [filterSemester, setFilterSemester] = useState('Ganjil');
   const [filterKelas, setFilterKelas] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchData();
-  }, [filterType, filterKelas]);
+  }, [filterType, filterKelas, filterBulan, filterSemester]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -550,13 +552,15 @@ const Rekapitulasi = () => {
     if (filterType === 'minggu') {
       startDate.setDate(startDate.getDate() - 6); // 7 hari terakhir (termasuk hari ini)
     } else if (filterType === 'bulan') {
-      startDate.setDate(1); // Awal bulan ini
+      startDate.setMonth(parseInt(filterBulan), 1);
+      endDate = new Date(startDate.getFullYear(), parseInt(filterBulan) + 1, 0, 23, 59, 59, 999);
     } else if (filterType === 'semester') {
-      const month = startDate.getMonth();
-      if (month >= 6) { // Juli - Des (Ganjil)
+      if (filterSemester === 'Ganjil') {
         startDate.setMonth(6, 1);
-      } else { // Jan - Jun (Genap)
+        endDate = new Date(startDate.getFullYear(), 12, 0, 23, 59, 59, 999);
+      } else {
         startDate.setMonth(0, 1);
+        endDate = new Date(startDate.getFullYear(), 6, 0, 23, 59, 59, 999);
       }
     }
     
@@ -584,11 +588,17 @@ const Rekapitulasi = () => {
         const missing = allStudents.filter(s => !submittedIds.has(String(s.id)));
         setMissingStudents(missing.map(s => ({ ...s, missingCount: 1 })));
       } else {
-        // Hitung total hari berjalan dari startDate sampai endDate
+        // Hitung total hari berjalan dari startDate sampai endDate atau today (mana yang lebih dulu)
+        let calcEndDate = endDate;
         const today = new Date();
-        const diffTime = Math.abs(today - startDate);
-        let totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-        if (totalDays === 0) totalDays = 1;
+        if (today < endDate) calcEndDate = today;
+        
+        let totalDays = 0;
+        if (startDate <= calcEndDate) {
+          const diffTime = Math.abs(calcEndDate - startDate);
+          totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+          if (totalDays === 0) totalDays = 1;
+        }
         
         const submissions = {};
         (logs || []).forEach(l => {
@@ -641,6 +651,8 @@ const Rekapitulasi = () => {
   const handleResetFilter = () => {
     setFilterKelas('');
     setFilterType('hari');
+    setFilterBulan(new Date().getMonth().toString());
+    setFilterSemester('Ganjil');
   };
 
   return (
@@ -666,11 +678,39 @@ const Rekapitulasi = () => {
           </div>
           <div>
             <label className="form-label mb-2 block">Rentang Waktu</label>
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-4 items-center">
               <button className={`btn ${filterType === 'hari' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('hari')}>Hari Ini</button>
               <button className={`btn ${filterType === 'minggu' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('minggu')}>7 Hari Terakhir</button>
-              <button className={`btn ${filterType === 'bulan' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('bulan')}>Bulan Ini</button>
-              <button className={`btn ${filterType === 'semester' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('semester')}>Semester Ini</button>
+              
+              <div className="flex items-center gap-2">
+                <button className={`btn ${filterType === 'bulan' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('bulan')}>Bulan</button>
+                {filterType === 'bulan' && (
+                  <select className="form-control" style={{ padding: '0.4rem 1rem' }} value={filterBulan} onChange={e => setFilterBulan(e.target.value)}>
+                    <option value="0">Januari</option>
+                    <option value="1">Februari</option>
+                    <option value="2">Maret</option>
+                    <option value="3">April</option>
+                    <option value="4">Mei</option>
+                    <option value="5">Juni</option>
+                    <option value="6">Juli</option>
+                    <option value="7">Agustus</option>
+                    <option value="8">September</option>
+                    <option value="9">Oktober</option>
+                    <option value="10">November</option>
+                    <option value="11">Desember</option>
+                  </select>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button className={`btn ${filterType === 'semester' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterType('semester')}>Semester</button>
+                {filterType === 'semester' && (
+                  <select className="form-control" style={{ padding: '0.4rem 1rem' }} value={filterSemester} onChange={e => setFilterSemester(e.target.value)}>
+                    <option value="Ganjil">Ganjil</option>
+                    <option value="Genap">Genap</option>
+                  </select>
+                )}
+              </div>
             </div>
           </div>
         </div>
