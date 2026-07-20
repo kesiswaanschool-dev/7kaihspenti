@@ -573,15 +573,15 @@ const Rekapitulasi = () => {
     // 3. Ambil log dalam rentang waktu
     const { data: logs } = await supabase
       .from('habits_log')
-      .select('nis, tanggal')
+      .select('student_id, tanggal')
       .gte('tanggal', startDateStr)
       .lte('tanggal', endDateStr);
       
     // 4. Hitung siapa yang belum mengisi
     if (allStudents) {
       if (filterType === 'hari') {
-        const submittedNis = new Set((logs || []).map(l => String(l.nis)));
-        const missing = allStudents.filter(s => !submittedNis.has(String(s.nis)));
+        const submittedIds = new Set((logs || []).map(l => String(l.student_id)));
+        const missing = allStudents.filter(s => !submittedIds.has(String(s.id)));
         setMissingStudents(missing.map(s => ({ ...s, missingCount: 1 })));
       } else {
         // Hitung total hari berjalan dari startDate sampai endDate
@@ -592,12 +592,12 @@ const Rekapitulasi = () => {
         
         const submissions = {};
         (logs || []).forEach(l => {
-          submissions[l.nis] = (submissions[l.nis] || 0) + 1;
+          submissions[l.student_id] = (submissions[l.student_id] || 0) + 1;
         });
         
         const missing = [];
         allStudents.forEach(s => {
-          const submitted = submissions[s.nis] || 0;
+          const submitted = submissions[s.id] || 0;
           if (submitted < totalDays) {
             missing.push({ ...s, missingCount: totalDays - submitted });
           }
