@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, FileText, Settings, LogOut, Upload, Download, Activity, PieChart as PieChartIcon } from 'lucide-react'
+import { Users, FileText, Settings, LogOut, Upload, Download, Activity, PieChart as PieChartIcon, Edit, Trash2 } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import * as XLSX from 'xlsx'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 const DataSiswa = () => {
   const [showForm, setShowForm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editId, setEditId] = useState(null);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -83,16 +85,54 @@ const DataSiswa = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleEditClick = (student) => {
+    setFormData({
+      nis: student.nis,
+      nama_murid: student.nama_murid,
+      kelas: student.kelas,
+      wali_kelas: student.wali_kelas
+    });
+    setEditId(student.id);
+    setIsEditing(true);
+    setShowForm(true);
+  };
+
+  const handleDeleteClick = async (id) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus data siswa ini?')) {
+      const { error } = await supabase.from('students').delete().eq('id', id);
+      if (error) {
+        alert('Gagal menghapus data: ' + error.message);
+      } else {
+        alert('Data siswa berhasil dihapus!');
+        fetchStudents();
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from('students').insert([formData]);
-    if (error) {
-      alert('Gagal menambahkan siswa: ' + error.message);
+    if (isEditing) {
+      const { error } = await supabase.from('students').update(formData).eq('id', editId);
+      if (error) {
+        alert('Gagal mengedit siswa: ' + error.message);
+      } else {
+        alert('Data Siswa berhasil diedit!');
+        setFormData({ nis: '', nama_murid: '', kelas: '', wali_kelas: '' });
+        setShowForm(false);
+        setIsEditing(false);
+        setEditId(null);
+        fetchStudents();
+      }
     } else {
-      alert('Data Siswa berhasil ditambahkan!');
-      setFormData({ nis: '', nama_murid: '', kelas: '', wali_kelas: '' });
-      setShowForm(false);
-      fetchStudents();
+      const { error } = await supabase.from('students').insert([formData]);
+      if (error) {
+        alert('Gagal menambahkan siswa: ' + error.message);
+      } else {
+        alert('Data Siswa berhasil ditambahkan!');
+        setFormData({ nis: '', nama_murid: '', kelas: '', wali_kelas: '' });
+        setShowForm(false);
+        fetchStudents();
+      }
     }
   };
 
@@ -108,7 +148,16 @@ const DataSiswa = () => {
             <Upload size={18}/> Import Excel
             <input type="file" accept=".xlsx, .xls" style={{ display: 'none' }} onChange={handleImportExcel} />
           </label>
-          <button className="btn btn-outline" onClick={() => setShowForm(!showForm)} style={{ borderColor: 'var(--primary-color)', color: 'var(--primary-color)' }}>
+          <button className="btn btn-outline" onClick={() => {
+            if (showForm) {
+              setShowForm(false);
+              setIsEditing(false);
+              setFormData({ nis: '', nama_murid: '', kelas: '', wali_kelas: '' });
+              setEditId(null);
+            } else {
+              setShowForm(true);
+            }
+          }} style={{ borderColor: 'var(--primary-color)', color: 'var(--primary-color)' }}>
             {showForm ? 'Batal' : '+ Tambah Manual'}
           </button>
         </div>
@@ -116,7 +165,7 @@ const DataSiswa = () => {
 
       {showForm && (
         <div className="glass-panel mb-6 animate-fade-in">
-          <h3 className="mb-4" style={{ color: 'var(--primary-color)' }}>Form Tambah Siswa</h3>
+          <h3 className="mb-4" style={{ color: 'var(--primary-color)' }}>{isEditing ? 'Form Edit Siswa' : 'Form Tambah Siswa'}</h3>
           <form onSubmit={handleSubmit}>
             <div className="flex gap-4 mb-4">
               <div className="form-group flex-1">
@@ -139,7 +188,7 @@ const DataSiswa = () => {
               </div>
             </div>
             <div className="flex justify-end">
-              <button type="submit" className="btn btn-primary">Simpan Data Siswa</button>
+              <button type="submit" className="btn btn-primary">{isEditing ? 'Update Data Siswa' : 'Simpan Data Siswa'}</button>
             </div>
           </form>
         </div>
@@ -153,13 +202,14 @@ const DataSiswa = () => {
               <th>Nama Murid</th>
               <th>Kelas</th>
               <th>Wali Kelas</th>
+              <th className="text-center">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="4" className="text-center">Memuat data...</td></tr>
+              <tr><td colSpan="5" className="text-center">Memuat data...</td></tr>
             ) : students.length === 0 ? (
-              <tr><td colSpan="4" className="text-center text-secondary">Belum ada data siswa</td></tr>
+              <tr><td colSpan="5" className="text-center text-secondary">Belum ada data siswa</td></tr>
             ) : (
               students.map((student) => (
                 <tr key={student.id}>
@@ -167,6 +217,14 @@ const DataSiswa = () => {
                   <td>{student.nama_murid}</td>
                   <td>{student.kelas}</td>
                   <td>{student.wali_kelas}</td>
+                  <td className="text-center">
+                    <button className="btn btn-outline btn-sm" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', borderColor: '#3b82f6', color: '#3b82f6', marginRight: '0.5rem' }} onClick={() => handleEditClick(student)}>
+                      <Edit size={14} className="inline mr-1" /> Edit
+                    </button>
+                    <button className="btn btn-outline btn-sm" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', borderColor: '#ef4444', color: '#ef4444' }} onClick={() => handleDeleteClick(student.id)}>
+                      <Trash2 size={14} className="inline mr-1" /> Hapus
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
